@@ -37,7 +37,7 @@ public class BlockInfo {
 	private static final String  BLOCK   = "\\[\\s*(" + CONTENT + ")\\s*\\]";
 	private static final Pattern P_BLOCK = Pattern.compile(BLOCK, Pattern.CASE_INSENSITIVE);
 	
-	private static final String  FULL   = "(" + BLOCK + "\\s*)*";
+	private static final String  FULL   = "(" + BLOCK + "\\s*)*"; // wow only 727 chars
 	private static final Pattern P_FULL = Pattern.compile(FULL, Pattern.CASE_INSENSITIVE);
 	
 	public static BlockInfo[] parseArr(String text) {

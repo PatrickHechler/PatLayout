@@ -40,8 +40,43 @@ import de.hechler.patrick.gui.layout.FillMode.SimpleFillMode;
 /**
  * this class implements the {@link LayoutManager2} interface
  * <p>
+ * each {@link PatGridLayout} has:
+ * <ul>
+ * <li>a map which maps all known {@link Component Components} to a {@link CompInfo} instance</li>
+ * <li>a list of {@link BlockInfo blocks} for the {@link #xBlocks() x} and {@link #yBlocks() y} axes</li>
+ * <li>a list of repeating {@link BlockInfo blocks} for the {@link #xAfterRepeatBlocks() x} and
+ * {@link #yAfterRepeatBlocks() y} axes after the above list ran out of blocks</li>
+ * <li>a number of empty pixels between each block for the {@link #xEmpty() x} and {@link #yEmpty() y} axes</li>
+ * </ul>
+ * to create a {@link PatGridLayout}:
+ * <ul>
+ * <li>a string constructor can be used
+ * ({@link #PatGridLayout(String, String)}/{@link #PatGridLayout(int, int, String, String)})</li>
+ * <li>a default constructor can be used ({@link #PatGridLayout()}/{@link #PatGridLayout(int, int)})</li>
+ * <li>a {@link BlockInfo BlockInfo[]} constructor can be used
+ * ({@link #PatGridLayout(int, int, BlockInfo[], BlockInfo[])}/{@link #PatGridLayout(int, int, BlockInfo[], BlockInfo[], BlockInfo[], BlockInfo[])})</li>
+ * </ul>
+ * to add a {@link Component} to a {@link PatGridLayout}:
+ * <ul>
+ * <li>the {@link #addLayoutComponent(Component, Object)} or {@link #addLayoutComponent(String, Component)} method has
+ * to be invoked either explicitly or implicitly by using a {@link Container#add(Component, Object)} method
+ * <ul>
+ * <li>the {@link #addLayoutComponent(String, Component)} accepts a {@link String} which has to understood by
+ * {@link CompInfo#parse(String)}</li>
+ * <li>the {@link #addLayoutComponent(Component, Object)} accepts:
+ * <ul>
+ * <li>a {@link String} which has to understood by {@link CompInfo#parse(String)}</li>
+ * <li>a {@link CompInfo} instance</li>
+ * </ul>
+ * </li>
+ * </ul>
+ * </li>
+ * </ul>
  * 
  * @author Patrick Hechler
+ * 
+ * @see BlockInfo
+ * @see CompInfo
  */
 public class PatGridLayout implements LayoutManager2 {
 	
@@ -236,9 +271,9 @@ public class PatGridLayout implements LayoutManager2 {
 	}
 	
 	/**
-	 * returns the amount pixels which are placed on the x-acis between the blocks
+	 * returns the amount pixels which are placed on the x-axis between the blocks
 	 * 
-	 * @return the amount pixels which are placed on the x-acis between the blocks
+	 * @return the amount pixels which are placed on the x-axis between the blocks
 	 * 
 	 * @see #xEmpty(int)
 	 * @see #yEmpty()
@@ -248,9 +283,9 @@ public class PatGridLayout implements LayoutManager2 {
 	}
 	
 	/**
-	 * sets the amount pixels which are placed on the x-acis between the blocks
+	 * sets the amount pixels which are placed on the x-axis between the blocks
 	 * 
-	 * @param xEmpty the amount pixels which are placed on the x-acis between the blocks
+	 * @param xEmpty the amount pixels which are placed on the x-axis between the blocks
 	 * 
 	 * @throws IllegalArgumentException if {@code xEmpty} is below {@code 0}
 	 * 
@@ -265,9 +300,9 @@ public class PatGridLayout implements LayoutManager2 {
 	}
 	
 	/**
-	 * returns the amount pixels which are placed on the y-acis between the blocks
+	 * returns the amount pixels which are placed on the y-axis between the blocks
 	 * 
-	 * @return the amount pixels which are placed on the y-acis between the blocks
+	 * @return the amount pixels which are placed on the y-axis between the blocks
 	 * 
 	 * @see #yEmpty(int)
 	 * @see #xEmpty()
@@ -277,9 +312,9 @@ public class PatGridLayout implements LayoutManager2 {
 	}
 	
 	/**
-	 * sets the amount pixels which are placed on the y-acis between the blocks
+	 * sets the amount pixels which are placed on the y-axis between the blocks
 	 * 
-	 * @param yEmpty the amount pixels which are placed on the y-acis between the blocks
+	 * @param yEmpty the amount pixels which are placed on the y-axis between the blocks
 	 * 
 	 * @throws IllegalArgumentException if {@code yEmpty} is below {@code 0}
 	 * 
