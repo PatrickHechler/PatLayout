@@ -61,8 +61,8 @@ public class CompInfo {
 	private static final String PREFIX_PREFERRED = "p(ref(erred)?)?";
 	private static final String PREFIX_MAX       = "max(imum)?|x";
 	private static final String PREFIX_COMPLETLY = "t(otal)?|c(omplete|ompletly)?";
-	private static final String PREFIX           =
-		"((" + PREFIX_MIN + "|" + PREFIX_PREFERRED + "|" + PREFIX_MAX + "|" + PREFIX_COMPLETLY + ")\\s*)?";
+	private static final String PREFIX           = "((" + PREFIX_MIN + "|" + PREFIX_PREFERRED + "|" + PREFIX_MAX + "|"
+		+ PREFIX_COMPLETLY + ")" + OPT_COMMA_SEP + ")?";
 	
 	private static final String  FULL   = PREFIX + POS + "(" + OPT_COMMA_SEP + ALIGNMENTS + ")?";
 	private static final Pattern P_FULL = Pattern.compile(FULL, Pattern.CASE_INSENSITIVE);
