@@ -29,8 +29,8 @@ public class BlockInfo {
 	// [min_size,max_size]
 	
 	private static final String  GROW            = "grow";
-	private static final String  NUM             = "(" + CompInfo.NUM + "(px)?)";
-	private static final String  OPT_COMMA_SEP   = CompInfo.OPT_COMMA_SEP;
+	private static final String  NUM             = "(" + CompInfo.NUMBER + "(px)?)";
+	private static final String  OPT_COMMA_SEP   = "(,\\s*|\\s+,?\\s*)";
 	private static final Pattern P_OPT_COMMA_SEP = Pattern.compile(OPT_COMMA_SEP, Pattern.CASE_INSENSITIVE);
 	
 	private static final String  CONTENT = GROW + "|" + NUM + "(" + OPT_COMMA_SEP + "(" + GROW + "|" + NUM + "))?";
@@ -63,7 +63,7 @@ public class BlockInfo {
 			return inf;
 		}
 		Matcher sepMat = P_OPT_COMMA_SEP.matcher(text);
-		boolean sep = sepMat.find();
+		boolean sep    = sepMat.find();
 		switch ( text.charAt(firstEnd(text, sepMat, sep) - 1) ) {
 		case 'x':
 			if ( text.charAt(firstEnd(text, sepMat, sep) - 2) != 'p' ) {
@@ -102,8 +102,14 @@ public class BlockInfo {
 		return sep ? m.start() : text.length();
 	}
 	
-	public static final int   DYNAMIC = -1;
-	public static final float FNONE   = -1f;
+	/**
+	 * when used for min it is like {@code 0}, when used for max it is like {@link Integer#MAX_VALUE}
+	 */
+	public static final int DYNAMIC  = -1;
+	/**
+	 * the maximum size a block can currently have (this is done to avoid overflow)
+	 */
+	public static final int MAX_SIZE = PatGridLayout.MAX_BLOCK_SIZE;
 	
 	int min;
 	int max;
@@ -111,6 +117,12 @@ public class BlockInfo {
 	private BlockInfo() {
 	}
 	
+	/**
+	 * creates a new {@link BlockInfo} instance with the given minimum and maximum
+	 * 
+	 * @param min the minimum
+	 * @param max the maximum
+	 */
 	public BlockInfo(int min, int max) {
 		set(min, max);
 	}
@@ -123,7 +135,7 @@ public class BlockInfo {
 	 * @return the minimum size
 	 */
 	public int min() {
-		return min;
+		return this.min;
 	}
 	
 	/**
@@ -134,11 +146,13 @@ public class BlockInfo {
 	 * @return the maximum size
 	 */
 	public int max() {
-		return max;
+		return this.max;
 	}
 	
 	/**
 	 * set both minimum size and maximum size.
+	 * 
+	 * @implSpec the implementation currently enforces a maximum size of {@value #MAX_SIZE} for both values
 	 * 
 	 * @param min the minimum size
 	 * @param max the maximum size
@@ -148,51 +162,51 @@ public class BlockInfo {
 			throw new IllegalArgumentException("min < -1: " + min);
 		}
 		if ( max < min && max != -1 ) {
-			throw new IllegalArgumentException("max < min & max != -1: " + min + " < " + max);
+			throw new IllegalArgumentException("max < min: " + min + " < " + max);
 		}
-		this.min = min;
-		this.max = max;
+		this.min = check(min, 0);
+		this.max = check(max, MAX_SIZE);
 	}
 	
+	private static int check(int val, int def) {
+		if ( val == -1 ) return def;
+		if ( val > MAX_SIZE ) return MAX_SIZE;
+		return val;
+	}
+	
+	/** {@inheritDoc} */
 	@Override
 	public int hashCode() {
-		final int prime = 31;
-		int result = 1;
-		result = prime * result + max;
-		result = prime * result + min;
+		final int prime  = 31;
+		int       result = 1;
+		result = prime * result + this.max;
+		result = prime * result + this.min;
 		return result;
 	}
 	
+	/** {@inheritDoc} */
 	@Override
 	public boolean equals(Object obj) {
-		if ( this == obj ) {
-			return true;
-		}
-		if ( !( obj instanceof BlockInfo ) ) {
-			return false;
-		}
+		if ( this == obj ) { return true; }
+		if ( !( obj instanceof BlockInfo ) ) { return false; }
 		BlockInfo other = (BlockInfo) obj;
-		if ( max != other.max ) {
-			return false;
-		}
-		if ( min != other.min ) {
-			return false;
-		}
-		return true;
+		if ( this.max != other.max ) { return false; }
+		return this.min == other.min;
 	}
 	
+	/** {@inheritDoc} */
 	@Override
 	public String toString() {
 		StringBuilder b = new StringBuilder();
 		b.append("BlockInfo [min=");
-		if ( min != DYNAMIC ) {
-			b.append(min);
+		if ( this.min != DYNAMIC ) {
+			b.append(this.min);
 		} else {
 			b.append("dynamic");
 		}
 		b.append(", max=");
-		if ( max != DYNAMIC ) {
-			b.append(max);
+		if ( this.max != DYNAMIC ) {
+			b.append(this.max);
 		} else {
 			b.append("dynamic");
 		}

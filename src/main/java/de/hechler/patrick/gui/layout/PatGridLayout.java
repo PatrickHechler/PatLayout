@@ -18,18 +18,20 @@ package de.hechler.patrick.gui.layout;
 
 import java.awt.Component;
 import java.awt.Container;
-import java.awt.Dialog.ModalityType;
 import java.awt.Dimension;
 import java.awt.LayoutManager2;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.StringJoiner;
+import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.swing.JButton;
-import javax.swing.JDialog;
+import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
@@ -56,6 +58,13 @@ import de.hechler.patrick.gui.layout.FillMode.SimpleFillMode;
  * <li>a {@link BlockInfo BlockInfo[]} constructor can be used
  * ({@link #PatGridLayout(int, int, BlockInfo[], BlockInfo[])}/{@link #PatGridLayout(int, int, BlockInfo[], BlockInfo[], BlockInfo[], BlockInfo[])})</li>
  * </ul>
+ * note that {@link PatGridLayout} instances are modifiable:
+ * <ul>
+ * <li>{@link #xBlocks(BlockInfo[])}/{@link #yBlocks(BlockInfo[])} sets the first x/y blocks</li>
+ * <li>{@link #xAfterRepeatBlocks(BlockInfo[])}/{@link #yAfterRepeatBlocks(BlockInfo[])} sets the x/y repeat blocks</li>
+ * <li>{@link #xEmpty(int)}/{@link #yEmpty(int)} sets the empty x/y space between blocks</li>
+ * </ul>
+ * <p>
  * to add a {@link Component} to a {@link PatGridLayout}:
  * <ul>
  * <li>the {@link #addLayoutComponent(Component, Object)} or {@link #addLayoutComponent(String, Component)} method has
@@ -89,7 +98,9 @@ public class PatGridLayout implements LayoutManager2 {
 	 */
 	public static final String LOGGER = "de.hechler.patrick.gui.layout";
 	
-	private static final int MAX_SIZE = Integer.MAX_VALUE >>> 7;
+	private static final Level LOG_LEVEL = Level.CONFIG;
+	
+	static final int MAX_BLOCK_SIZE = Integer.MAX_VALUE >>> 7;
 	
 	/**
 	 * an empty array with {@link BlockInfo} as component type<br>
@@ -496,7 +507,7 @@ public class PatGridLayout implements LayoutManager2 {
 	@Override
 	public float getLayoutAlignmentX(Container target) {
 		CompInfo inf  = this.comps.get(target);
-		FillMode mode = inf.wideMode;
+		FillMode mode = inf.widthMode;
 		if ( mode == FillMode.FILL_COMPLETLY ) {
 			return 0f;
 		}
@@ -530,21 +541,21 @@ public class PatGridLayout implements LayoutManager2 {
 	@Override
 	public Dimension minimumLayoutSize(Container parent) {
 		BlockSize[][] sizes = layoutSizes(parent, LAYOUT_SIZES_MINIMUM);
-		return calcSize(sizes, false);
+		return calcSize(sizes);
 	}
 	
 	/** {@inheritDoc} */
 	@Override
 	public Dimension preferredLayoutSize(Container parent) {
 		BlockSize[][] sizes = layoutSizes(parent, LAYOUT_SIZES_PREFERRED);
-		return calcSize(sizes, false);
+		return calcSize(sizes);
 	}
 	
 	/** {@inheritDoc} */
 	@Override
 	public Dimension maximumLayoutSize(Container target) {
 		BlockSize[][] sizes = layoutSizes(target, LAYOUT_SIZES_MAXIMUM);
-		return calcSize(sizes, true);
+		return calcSize(sizes);
 	}
 	
 	private static final int LAYOUT_SIZES_MINIMUM   = 0x1;
@@ -552,8 +563,8 @@ public class PatGridLayout implements LayoutManager2 {
 	private static final int LAYOUT_SIZES_MAXIMUM   = 0x4;
 	
 	private BlockSize[][] layoutSizes(Container parent, int flags) {
-		int xBlocks = -1;
-		int yBlocks = -1;
+		int xBlockCount = -1;
+		int yBlockCount = -1;
 		for (int i = parent.getComponentCount(); --i >= 0;) {
 			CompInfo inf = this.comps.get(parent.getComponent(i));
 			if ( inf == null ) {
@@ -561,22 +572,22 @@ public class PatGridLayout implements LayoutManager2 {
 					+ parent.getComponent(i) + " I know: " + this.comps);
 			}
 			int x = inf.x + inf.w;
-			if ( x > xBlocks ) {
-				xBlocks = x;
+			if ( x > xBlockCount ) {
+				xBlockCount = x;
 			}
 			int y = inf.y + inf.h;
-			if ( y > yBlocks ) {
-				yBlocks = y;
+			if ( y > yBlockCount ) {
+				yBlockCount = y;
 			}
 		}
-		if ( xBlocks == -1 ) {
+		if ( xBlockCount == -1 ) {
 			return null;// NOSONAR
 		}
-		BlockSize[][] sizes  = new BlockSize[yBlocks][xBlocks];
+		BlockSize[][] sizes  = new BlockSize[yBlockCount][xBlockCount];
 		int           bitCnt = Integer.bitCount(flags);
-		for (BlockSize[] bs : sizes) {
-			for (int i = 0; i < bs.length; i++) {
-				bs[i] = BlockSize.create(bitCnt);
+		for (BlockSize[] arr : sizes) {
+			for (int i = 0; i < arr.length; i++) {
+				arr[i] = BlockSize.create(bitCnt);
 			}
 		}
 		for (int i = parent.getComponentCount(); --i >= 0;) {
@@ -600,7 +611,7 @@ public class PatGridLayout implements LayoutManager2 {
 			if ( ( flags & LAYOUT_SIZES_MAXIMUM ) != 0 ) {
 				Dimension dim = comp.getMaximumSize();
 				checkMinReplace(dim);
-				bs.min(bsi, dim);
+				bs.max(bsi, dim);
 			}
 		}
 		for (int ci = parent.getComponentCount(); --ci >= 0;) {
@@ -612,40 +623,57 @@ public class PatGridLayout implements LayoutManager2 {
 			int bsi = 0;
 			if ( ( flags & LAYOUT_SIZES_MINIMUM ) != 0 ) {
 				Dimension dim = comp.getMinimumSize();
-				checkMinThrow(dim);
+				checkMinThrow(dim, inf);
 				grow(sizes, inf, bsi++, dim, true);
 			}
 			if ( ( flags & LAYOUT_SIZES_PREFERRED ) != 0 ) {
 				Dimension dim = comp.getPreferredSize();
-				checkMinReplace(dim);
+				checkMinReplace(dim, inf);
 				grow(sizes, inf, bsi++, dim, true);
 			}
 			if ( ( flags & LAYOUT_SIZES_MAXIMUM ) != 0 ) {
 				Dimension dim = comp.getMaximumSize();
-				checkMinReplace(dim);
-				grow(sizes, inf, bsi, dim, false);
+				checkMinReplace(dim, inf);
+				grow(sizes, inf, bsi, dim, true);
 			}
 		}
 		return sizes;
 	}
 	
-	private void checkMinReplace(Dimension dim) {
+	private void checkMinReplace(Dimension dim, CompInfo inf) {
+		if ( dim.width <= Integer.MAX_VALUE - this.xempty ) dim.width += this.xempty * inf.w;
+		else dim.width = Integer.MAX_VALUE;
+		if ( dim.height <= Integer.MAX_VALUE - this.yempty ) dim.height += this.yempty * inf.h;
+		else dim.width = Integer.MAX_VALUE;
+	}
+	
+	private void checkMinReplace(Dimension dim) {// same as checkMinReplace(dim, new CompInfo(0,0,1,1))
 		if ( dim.width <= Integer.MAX_VALUE - this.xempty ) dim.width += this.xempty;
 		else dim.width = Integer.MAX_VALUE;
 		if ( dim.height <= Integer.MAX_VALUE - this.yempty ) dim.height += this.yempty;
 		else dim.width = Integer.MAX_VALUE;
 	}
 	
-	private void checkMinThrow(Dimension dim) {
-		if ( dim.width <= Integer.MAX_VALUE - this.xempty ) dim.width += this.xempty;
+	private void checkMinThrow(Dimension dim, CompInfo inf) {
+		if ( dim.width <= MAX_BLOCK_SIZE - this.xempty ) dim.width += this.xempty * inf.w;
+		else throw new IllegalStateException("minimum size too large");// NOSONAR
+		if ( dim.height <= MAX_BLOCK_SIZE - this.yempty ) dim.height += this.yempty * inf.h;
 		else throw new IllegalStateException("minimum size too large");
-		if ( dim.height <= Integer.MAX_VALUE - this.yempty ) dim.height += this.yempty;
+	}
+	
+	private void checkMinThrow(Dimension dim) { // ca,e as checkMinThrow(dim, new CompInfo(0,0,1,1))
+		if ( dim.width <= MAX_BLOCK_SIZE - this.xempty ) dim.width += this.xempty;
+		else throw new IllegalStateException("minimum size too large");
+		if ( dim.height <= MAX_BLOCK_SIZE - this.yempty ) dim.height += this.yempty;
 		else throw new IllegalStateException("minimum size too large");
 	}
 	
 	private void grow(BlockSize[][] sizes, CompInfo cinf, int bsi, Dimension cdim, boolean grow) {
-		// its already a mess this way
-		// calculating both wide and height at the same time would just blow the method
+		// its already a mess this way calculating both wide and height at the same time would just blow the method
+		// calcWidth true and false go to a different loop structure (true: y outer, x inner; false: x outer, y inner)
+		// thus calculating both is more than just doubling all variables
+		// (and changing width/height calculation to use the loop of the other is not easy
+		// (it would probably need an array to store information and an after loop to evaluate the array)
 		grow(sizes, cinf, bsi, cdim, grow, true);
 		grow(sizes, cinf, bsi, cdim, grow, false);
 	}
@@ -668,34 +696,32 @@ public class PatGridLayout implements LayoutManager2 {
 			width = cdim.height;
 		}
 		for (int yadd = h; --yadd >= 0;) {
-			boolean condition;
+			boolean repeat;
 			do {
-				condition = false;
-				int     wsum                = 0;
-				boolean overwriteNoContinue = false;
-				int     yc                  = y + yadd;
+				repeat = false;
+				int wsum = 0;
+				int yc   = y + yadd;
 				for (int xadd = w, growPotBool = 0; --xadd >= 0;) {
 					int       xc = x + xadd;
 					BlockSize s  = get(sizes, xc, yc, calcWidth);
 					int       sw = calcWidth ? s.w(bsi) : s.h(bsi);
-					if ( sw != -1 ) wsum += sw;
-					else overwriteNoContinue = true;
+					wsum += sw == 0 ? empty(calcWidth) : sw;
 					if ( growPotBool == 0 ) {
 						BlockInfo inf = calcWidth ? xinf(xc) : yinf(yc);
 						if ( grow ) {
 							int infMax = inf.max;
-							if ( infMax == BlockInfo.DYNAMIC || infMax < sw || sw == -1 ) {
+							if ( infMax == BlockInfo.DYNAMIC || infMax > sw ) {
 								growPotBool = 1;// NOSONAR
 							}
 						} else {
 							int infMin = inf.min;
-							if ( ( infMin == BlockInfo.DYNAMIC ? 0 : infMin ) < sw || sw == -1 ) {
+							if ( ( infMin == BlockInfo.DYNAMIC ? 0 : infMin ) < sw ) {
 								growPotBool = 1;// NOSONAR
 							}
 						}
 					}
 				}
-				if ( !overwriteNoContinue && ( grow ? wsum <= width : wsum >= width ) ) {
+				if ( grow ? wsum >= width : wsum <= width ) {
 					continue;
 				}
 				int[] growPots = new int[w];
@@ -710,18 +736,16 @@ public class PatGridLayout implements LayoutManager2 {
 							growPots[xadd] = Integer.MAX_VALUE;
 						} else {
 							int sw         = get(sizes, yc, xc, bsi, calcWidth);
-							int curGrowPot = sw == -1 ? inf.max : inf.max - sw;
+							int curGrowPot = inf.max - sw;
 							if ( growPot != Integer.MAX_VALUE ) {
 								growPot += curGrowPot;
 							}
 							growPots[xadd] = curGrowPot;
 						}
 					} else {
-						int imin = inf.min;
-						int sw   = get(sizes, yc, xc, bsi, calcWidth);
-						int curGrowPot;
-						if ( sw != -1 ) curGrowPot = ( imin == BlockInfo.DYNAMIC ? 0 : imin );
-						else curGrowPot = ( sw - ( imin == BlockInfo.DYNAMIC ? 0 : imin ) );
+						int imin       = inf.min;
+						int sw         = get(sizes, yc, xc, bsi, calcWidth);
+						int curGrowPot = ( sw - ( imin == BlockInfo.DYNAMIC ? 0 : imin ) );
 						growPot        += curGrowPot;
 						growPots[xadd]  = curGrowPot;
 					}
@@ -732,38 +756,43 @@ public class PatGridLayout implements LayoutManager2 {
 						growPotCnt++;
 					}
 				}
-				if ( growPotCnt != 0 ) { // round up
-					int div = ( width + growPotCnt - 1 ) / growPotCnt;
-					int sum = 0;
-					for (int xadd = w; --xadd >= 0;) {
+				if ( growPotCnt != 0 ) {
+					// round up and check in loop if enough grow was already done
+					// thus repeat only needs to be set, when next iteration has less growPotential
+					// also this saves before (width - wsum) < growPotCnt
+					// (which would come eventually with rounding down behavior and no perfect fit)
+					int div = ( width - wsum + growPotCnt - 1 ) / growPotCnt;
+					for (int xadd = w, sum = 0; --xadd >= 0 && sum != width;) {
 						int curGrowPot = growPots[xadd];
 						if ( curGrowPot == 0 ) continue;
 						int curDiff;
 						if ( curGrowPot < div ) {
-							curDiff   = curGrowPot;
-							condition = true;
+							curDiff = curGrowPot;
+							repeat  = true;
 						} else {
 							curDiff = div;
 						}
 						if ( sum + curDiff > width ) {
 							curDiff = width - sum;
 						}
-						sum += curDiff;
+						sum += curDiff; // NOSONAR
 						int xc = x + xadd;
 						add(sizes, bsi, xc, yc, curDiff, calcWidth, grow);
 					}
 				}
-			} while ( condition );
+			} while ( repeat );
 		}
+	}
+	
+	private int empty(boolean calcWidth) {
+		return calcWidth ? this.xempty : this.yempty;
 	}
 	
 	private static void add(BlockSize[][] sizes, int bsi, int xc, int yc, int addVal, boolean calcWidth, boolean grow) {
 		if ( calcWidth ) {
 			BlockSize bs  = sizes[yc][xc];
 			int       old = bs.w(bsi);
-			if ( old == -1 ) {
-				bs.w(bsi, addVal);
-			} else if ( grow ) {
+			if ( grow ) {
 				bs.w(bsi, old + addVal);
 			} else {
 				bs.w(bsi, old - addVal);
@@ -771,9 +800,7 @@ public class PatGridLayout implements LayoutManager2 {
 		} else {
 			BlockSize bs  = sizes[xc][yc];
 			int       old = bs.h(bsi);
-			if ( old == -1 ) {
-				bs.h(bsi, addVal);
-			} else if ( grow ) {
+			if ( grow ) {
 				bs.h(bsi, old + addVal);
 			} else {
 				bs.h(bsi, old - addVal);
@@ -808,7 +835,11 @@ public class PatGridLayout implements LayoutManager2 {
 		if ( this.yblocks.length > y ) {
 			return this.yblocks[y];
 		}
-		return this.yafterblocks[( y - this.yblocks.length ) % this.yafterblocks.length];
+		try {
+			return this.yafterblocks[( y - this.yblocks.length ) % this.yafterblocks.length];
+		} catch (@SuppressWarnings("unused") ArithmeticException e) {
+			throw new IndexOutOfBoundsException("there is no y block with the number " + y);
+		}
 	}
 	
 	/**
@@ -819,38 +850,34 @@ public class PatGridLayout implements LayoutManager2 {
 	@Override
 	public void invalidateLayout(@SuppressWarnings("unused") Container target) {/**/}
 	
-	private Dimension calcSize(BlockSize[][] sizes, boolean max) {
+	private Dimension calcSize(BlockSize[][] sizes) {
 		final int yBlockCount = sizes.length;
 		final int xBlockCount = sizes[0].length;
 		int[]     yminpos     = new int[yBlockCount + 1];
 		int[]     xminpos     = new int[xBlockCount + 1];
-		if ( max ) {
-			Arrays.fill(yminpos, Integer.MAX_VALUE);
-			Arrays.fill(xminpos, Integer.MAX_VALUE);
-		}
 		for (int y = yBlockCount; --y >= 0;) { // calculate the width/height
 			BlockSize[] bsa = sizes[y];
 			for (int x = xBlockCount; --x >= 0;) {
 				BlockSize bs  = bsa[x];
 				int       val = bs.h(0);
-				if ( max ? val < yminpos[y + 1] : val > yminpos[y + 1] ) {
+				if ( val > yminpos[y + 1] ) {
 					yminpos[y + 1] = val;
 				}
 				val = bs.w(0);
-				if ( max ? val < xminpos[x + 1] : val > xminpos[x + 1] ) {
+				if ( val > xminpos[x + 1] ) {
 					xminpos[x + 1] = val;
 				}
 			}
 		}
 		yminpos[0] = this.yempty;
 		xminpos[0] = this.xempty;
-		for (int y = 1; y <= yBlockCount; y++) { // convert width/height to positions
-			check(yminpos, y, this.yempty);
-			yminpos[y] += yminpos[y - 1];
+		for (int i = 1; i <= yBlockCount; i++) { // convert width/height to positions
+			check(yminpos, i, yinf(i - 1), this.yempty);
+			yminpos[i] += yminpos[i - 1];
 		}
-		for (int x = 1; x <= xBlockCount; x++) {
-			check(xminpos, x, this.xempty);
-			xminpos[x] += xminpos[x - 1];
+		for (int i = 1; i <= xBlockCount; i++) {
+			check(xminpos, i, xinf(i - 1), this.xempty);
+			xminpos[i] += xminpos[i - 1];
 		}
 		return new Dimension(xminpos[xBlockCount], yminpos[yBlockCount]);
 	}
@@ -877,7 +904,7 @@ public class PatGridLayout implements LayoutManager2 {
 					yminpos[y + 1] = val;
 				}
 				val = bs.h(1);
-				if ( val != -1 && val < ymaxpos[y + 1] ) {
+				if ( val > ymaxpos[y + 1] ) {
 					ymaxpos[y + 1] = val;
 				}
 				val = bs.w(0);
@@ -885,9 +912,27 @@ public class PatGridLayout implements LayoutManager2 {
 					xminpos[x + 1] = val;
 				}
 				val = bs.w(1);
-				if ( val != -1 && val < xmaxpos[x + 1] ) {
+				if ( val > xmaxpos[x + 1] ) {
 					xmaxpos[x + 1] = val;
 				}
+			}
+		}
+		for (int x = xBlockCount; --x >= 0;) {
+			BlockInfo inf = xinf(x);
+			if ( xminpos[x + 1] < inf.min ) {
+				xminpos[x + 1] = inf.min;
+			}
+			if ( xmaxpos[x + 1] > inf.max ) {
+				xmaxpos[x + 1] = inf.max;
+			}
+		}
+		for (int y = yBlockCount; --y >= 0;) {
+			BlockInfo inf = yinf(y);
+			if ( yminpos[y + 1] < inf.min ) {
+				yminpos[y + 1] = inf.min;
+			}
+			if ( ymaxpos[y + 1] > inf.max ) {
+				ymaxpos[y + 1] = inf.max;
 			}
 		}
 		yminpos[0] = ymaxpos[0] = this.yempty;
@@ -899,17 +944,19 @@ public class PatGridLayout implements LayoutManager2 {
 				"  xmin: " + Arrays.toString(xminpos), //
 				"  xmax: " + Arrays.toString(xmaxpos));
 		}
-		for (int y = 1; y <= yBlockCount; y++) { // convert width/height to positions
-			check(yminpos, y, this.xempty);
-			check(ymaxpos, y, this.xempty);
-			yminpos[y] += yminpos[y - 1];// + yEmpty is not needed, because layoutSizes already adds empty
-			ymaxpos[y] += ymaxpos[y - 1];
+		for (int i = 1; i <= yBlockCount; i++) { // convert width/height to positions
+			BlockInfo inf = yinf(i - 1);
+			check(yminpos, i, inf, this.yempty);
+			check(ymaxpos, i, inf, this.yempty);
+			yminpos[i] += yminpos[i - 1];// + yEmpty is not needed, because layoutSizes already adds empty
+			ymaxpos[i] += ymaxpos[i - 1];
 		}
-		for (int x = 1; x <= xBlockCount; x++) {
-			check(xminpos, x, this.xempty);
-			check(xmaxpos, x, this.xempty);
-			xminpos[x] += xminpos[x - 1];
-			xmaxpos[x] += xmaxpos[x - 1];
+		for (int i = 1; i <= xBlockCount; i++) {
+			BlockInfo inf = xinf(i - 1);
+			check(xminpos, i, inf, this.xempty);
+			check(xmaxpos, i, inf, this.xempty);
+			xminpos[i] += xminpos[i - 1];
+			xmaxpos[i] += xmaxpos[i - 1];
 		}
 		if ( doLogging() ) {
 			log("positions:", //
@@ -948,18 +995,17 @@ public class PatGridLayout implements LayoutManager2 {
 					"  bounds:  x=" + xpos + " y=" + ypos + " w=" + width + " h=" + height, //
 					"  MBounds: x=" + xmin + " y=" + ymin + " w=" + maxWidth + " h=" + maxHeight, //
 					"  dimension: " + dim, //
-					"  wideMode: " + inf.wideMode, //
+					"  wideMode: " + inf.widthMode, //
 					"  heightMode: " + inf.heightMode);
 			}
 		}
 	}
 	
-	private static void check(int[] arr, int i, int empty) {
-		if ( arr[i] > MAX_SIZE ) {
-			arr[i] = MAX_SIZE;
-		} else if ( arr[i] < empty ) {
-			assert arr[i] == 0;
-			arr[i] = empty;
+	private static void check(int[] arr, int i, BlockInfo inf, int empty) {
+		if ( arr[i] > inf.max + empty ) {
+			arr[i] = inf.max + empty;
+		} else if ( arr[i] < inf.min + empty ) {
+			arr[i] = inf.min + empty;
 		}
 	}
 	
@@ -974,7 +1020,7 @@ public class PatGridLayout implements LayoutManager2 {
 		if ( dim == null || ( heigth ? dim.height : dim.width ) == -1 ) {
 			int height;
 			height = maxHeight;
-			if ( ( heigth ? inf.heightMode : inf.wideMode ) instanceof FillMode.ComplexFillMode c ) {
+			if ( ( heigth ? inf.heightMode : inf.widthMode ) instanceof FillMode.ComplexFillMode c ) {
 				height *= c.mul;
 			}
 			return height;
@@ -995,7 +1041,7 @@ public class PatGridLayout implements LayoutManager2 {
 		if ( dim != null && inf.heightMode instanceof FillMode.ComplexFillMode fmc ) {
 			dim.height *= fmc.mul;
 		}
-		SimpleFillMode wmt = inf.wideMode.type();
+		SimpleFillMode wmt = inf.widthMode.type();
 		if ( hmt != wmt ) {
 			Dimension dim2 = switch ( hmt ) {
 			case FILL_COMPLETLY -> null;
@@ -1014,7 +1060,7 @@ public class PatGridLayout implements LayoutManager2 {
 				dim.width = dim2.width;
 			}
 		}
-		if ( dim != null && dim.width != -1 && inf.wideMode instanceof FillMode.ComplexFillMode fmc ) {
+		if ( dim != null && dim.width != -1 && inf.widthMode instanceof FillMode.ComplexFillMode fmc ) {
 			dim.width *= fmc.mul;
 		}
 		return dim;
@@ -1121,35 +1167,53 @@ public class PatGridLayout implements LayoutManager2 {
 	}
 	
 	@SuppressWarnings("javadoc")
-	public static void main(String[] args) {
+	public static void main(String[] args) throws InterruptedException {
 		Logger logger = Logger.getLogger(LOGGER);
-		logger.setLevel(Level.ALL);
-		SwingUtilities.invokeLater(() -> {
-			showDialog(new PatGridLayout(5, 5));
-			showDialog(new PatGridLayout(0, 0));
-		});
+		for (Logger l = logger; l != null; l = l.getParent()) {
+			l.setLevel(LOG_LEVEL);
+			for (Handler h : l.getHandlers()) {
+				h.setLevel(LOG_LEVEL);
+			}
+		}
+		SwingUtilities.invokeLater(() -> 
+			showDialog(new PatGridLayout(0, 0, ":[100]", ":[100,grow]")));
+		while ( true ) {// NOSONAR
+			Thread.sleep(Long.MAX_VALUE);
+			logger.setLevel(LOG_LEVEL);// NOSONAR
+		}
 	}
 	
 	private static void showDialog(PatGridLayout layout) {
-		JDialog dialog = new JDialog();
-		dialog.setTitle("test dialog");
-		dialog.setModalityType(ModalityType.DOCUMENT_MODAL);
-		dialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
-		dialog.setLayout(layout);
-		dialog.add("0 0", new JLabel("enter some text:"));
-		dialog.add("1 0", new JTextField(12));
-		dialog.add("0 2 2 1", new JButton("OK"));
-		dialog.setLocationRelativeTo(null);
-		dialog.pack();
-		System.out.println("min:  " + dialog.getMinimumSize());
-		System.out.println("pref: " + dialog.getPreferredSize());
-		System.out.println("max:  " + dialog.getMaximumSize());
-		System.out.println("size: " + dialog.getSize());
-		dialog.setVisible(true);
+		JFrame frame = new JFrame();
+		frame.setTitle("test dialog");
+		frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+		frame.setLayout(layout);
+		frame.add(new JLabel("enter some text:"), parseCI("0 0, yalign=bottom"));
+		frame.add(new JTextField(12), parseCI("1 0"));
+		frame.add(new JButton("OK"), parseCI("0 2 2 1"));
+		frame.setLocationByPlatform(true);
+		frame.pack();
+		System.out.println("min:  " + frame.getContentPane().getMinimumSize());
+		System.out.println("pref: " + frame.getContentPane().getPreferredSize());
+		System.out.println("max:  " + frame.getContentPane().getMaximumSize());
+		System.out.println("size: " + frame.getContentPane().getSize());
+		frame.addComponentListener(new ComponentAdapter() {
+			@Override
+			public void componentResized(@SuppressWarnings("unused") ComponentEvent e) {
+				System.out.println("size: " + frame.getContentPane().getSize());
+			}
+		});
+		frame.setVisible(true);
+	}
+	
+	private static Object parseCI(String str) {
+		CompInfo ci = CompInfo.parse(str);
+		System.out.println(str + " -> " + ci);
+		return ci;// when returning str, CompInfo.parse(str) will be called by the LayoutManager
 	}
 	
 	private static boolean doLogging() {
-		return Logger.getLogger(LOGGER).isLoggable(Level.FINER);
+		return Logger.getLogger(LOGGER).isLoggable(LOG_LEVEL);
 	}
 	
 	private static void log(String... lines) {
@@ -1157,7 +1221,7 @@ public class PatGridLayout implements LayoutManager2 {
 		for (String line : lines) {
 			sj.add(line);
 		}
-		Logger.getLogger(LOGGER).log(Level.FINER, sj.toString()); // NOSONAR
+		Logger.getLogger(LOGGER).log(LOG_LEVEL, sj.toString()); // NOSONAR
 	}
 	
 }

@@ -19,7 +19,7 @@ package de.hechler.patrick.gui.layout;
 import java.awt.Dimension;
 import java.util.Arrays;
 
-public interface BlockSize {
+interface BlockSize {
 	
 	static BlockSize create(int size) {
 		switch ( size ) {
@@ -46,59 +46,59 @@ public interface BlockSize {
 	
 	public static class BlockSize1 implements BlockSize {
 		
-		private int w0 = -1;
-		private int h0 = -1;
+		private int w0;
+		private int h0;
 		
 		@Override
-		public void max(int i, Dimension dim) {
-			int v = w0;
+		public void max(@SuppressWarnings("unused") int i, Dimension dim) {
+			int v = this.w0;
 			if ( v < dim.width ) {
-				w0 = dim.width;
+				this.w0 = dim.width;
 			}
-			v = h0;
+			v = this.h0;
 			if ( v < dim.height ) {
-				h0 = dim.height;
+				this.h0 = dim.height;
 			}
 		}
 		
 		@Override
-		public void min(int i, Dimension dim) {
-			int v = w0;
-			if ( v < dim.width || v == -1 ) {
-				w0 = dim.width;
+		public void min(@SuppressWarnings("unused") int i, Dimension dim) {
+			int v = this.w0;
+			if ( v > dim.width ) {
+				this.w0 = dim.width;
 			}
-			v = h0;
-			if ( v < dim.height || v == -1 ) {
-				h0 = dim.height;
+			v = this.h0;
+			if ( v > dim.height ) {
+				this.h0 = dim.height;
 			}
 		}
 		
 		@Override
-		public void w(int i, int val) {
-			w0 = val;
+		public void w(@SuppressWarnings("unused") int i, int val) {
+			this.w0 = val;
 		}
 		
 		@Override
-		public void h(int i, int val) {
-			h0 = val;
+		public void h(@SuppressWarnings("unused") int i, int val) {
+			this.h0 = val;
 		}
 		
 		@Override
-		public int w(int i) {
-			return w0;
+		public int w(@SuppressWarnings("unused") int i) {
+			return this.w0;
 		}
 		
 		@Override
-		public int h(int i) {
-			return h0;
+		public int h(@SuppressWarnings("unused") int i) {
+			return this.h0;
 		}
 		
 		@Override
 		public int hashCode() {
-			final int prime = 31;
-			int result = 1;
-			result = prime * result + h0;
-			result = prime * result + w0;
+			final int prime  = 31;
+			int       result = 1;
+			result = prime * result + this.h0;
+			result = prime * result + this.w0;
 			return result;
 		}
 		
@@ -107,61 +107,60 @@ public interface BlockSize {
 			if ( this == obj ) { return true; }
 			if ( !( obj instanceof BlockSize1 ) ) { return false; }
 			BlockSize1 other = (BlockSize1) obj;
-			if ( h0 != other.h0 ) { return false; }
-			if ( w0 != other.w0 ) { return false; }
-			return true;
+			if ( this.h0 != other.h0 ) { return false; }
+			return this.w0 == other.w0;
 		}
 		
 		@Override
 		public String toString() {
-			return "[(" + w0 + "|" + h0 + ")]";
+			return "{(" + this.w0 + "|" + this.h0 + ")}";
 		}
 		
 	}
 	
 	public static class BlockSize2 implements BlockSize {
 		
-		private int w0 = -1;
-		private int h0 = -1;
-		private int w1 = -1;
-		private int h1 = -1;
+		private int w0;
+		private int h0;
+		private int w1;
+		private int h1;
 		
 		@Override
 		public void max(int i, Dimension dim) {
-			int v = i == 0 ? w0 : w1;
+			int v = i == 0 ? this.w0 : this.w1;
 			if ( v < dim.width ) {
 				if ( i == 0 ) {
-					w0 = dim.width;
+					this.w0 = dim.width;
 				} else {
-					w1 = dim.width;
+					this.w1 = dim.width;
 				}
 			}
-			v = i == 0 ? h0 : h1;
+			v = i == 0 ? this.h0 : this.h1;
 			if ( v < dim.height ) {
 				if ( i == 0 ) {
-					h0 = dim.height;
+					this.h0 = dim.height;
 				} else {
-					h1 = dim.height;
+					this.h1 = dim.height;
 				}
 			}
 		}
 		
 		@Override
 		public void min(int i, Dimension dim) {
-			int v = i == 0 ? w0 : w1;
-			if ( v < dim.width || v == -1 ) {
+			int v = i == 0 ? this.w0 : this.w1;
+			if ( v > dim.width ) {
 				if ( i == 0 ) {
-					w0 = dim.width;
+					this.w0 = dim.width;
 				} else {
-					w1 = dim.width;
+					this.w1 = dim.width;
 				}
 			}
-			v = i == 0 ? h0 : h1;
-			if ( v < dim.height || v == -1 ) {
+			v = i == 0 ? this.h0 : this.h1;
+			if ( v > dim.height ) {
 				if ( i == 0 ) {
-					h0 = dim.height;
+					this.h0 = dim.height;
 				} else {
-					h1 = dim.height;
+					this.h1 = dim.height;
 				}
 			}
 		}
@@ -169,39 +168,39 @@ public interface BlockSize {
 		@Override
 		public void w(int i, int val) {
 			if ( i == 0 ) {
-				w0 = val;
+				this.w0 = val;
 			} else {
-				w1 = val;
+				this.w1 = val;
 			}
 		}
 		
 		@Override
 		public void h(int i, int val) {
 			if ( i == 0 ) {
-				h0 = val;
+				this.h0 = val;
 			} else {
-				h1 = val;
+				this.h1 = val;
 			}
 		}
 		
 		@Override
 		public int w(int i) {
-			return i == 0 ? w0 : w1;
+			return i == 0 ? this.w0 : this.w1;
 		}
 		
 		@Override
 		public int h(int i) {
-			return i == 0 ? h0 : h1;
+			return i == 0 ? this.h0 : this.h1;
 		}
 		
 		@Override
 		public int hashCode() {
-			final int prime = 31;
-			int result = 1;
-			result = prime * result + h0;
-			result = prime * result + h1;
-			result = prime * result + w0;
-			result = prime * result + w1;
+			final int prime  = 31;
+			int       result = 1;
+			result = prime * result + this.h0;
+			result = prime * result + this.h1;
+			result = prime * result + this.w0;
+			result = prime * result + this.w1;
 			return result;
 		}
 		
@@ -210,16 +209,15 @@ public interface BlockSize {
 			if ( this == obj ) { return true; }
 			if ( !( obj instanceof BlockSize2 ) ) { return false; }
 			BlockSize2 other = (BlockSize2) obj;
-			if ( h0 != other.h0 ) { return false; }
-			if ( h1 != other.h1 ) { return false; }
-			if ( w0 != other.w0 ) { return false; }
-			if ( w1 != other.w1 ) { return false; }
-			return true;
+			if ( this.h0 != other.h0 ) { return false; }
+			if ( this.h1 != other.h1 ) { return false; }
+			if ( this.w0 != other.w0 ) { return false; }
+			return this.w1 == other.w1;
 		}
 		
 		@Override
 		public String toString() {
-			return "[(" + w0 + "|" + h0 + "),(" + w1 + "|" + h1 + ")]";
+			return "{(" + this.w0 + "|" + this.h0 + "),(" + this.w1 + "|" + this.h1 + ")}";
 		}
 		
 	}
@@ -237,54 +235,54 @@ public interface BlockSize {
 		
 		@Override
 		public void max(int i, Dimension dim) {
-			int v = w[i];
+			int v = this.w[i];
 			if ( v < dim.width ) {
-				w[i] = dim.width;
+				this.w[i] = dim.width;
 			}
-			v = h[i];
+			v = this.h[i];
 			if ( v < dim.height ) {
-				h[i] = dim.height;
+				this.h[i] = dim.height;
 			}
 		}
 		
 		@Override
 		public void min(int i, Dimension dim) {
-			int v = w[i];
-			if ( v < dim.width || v == -1 ) {
-				w[i] = dim.width;
+			int v = this.w[i];
+			if ( v > dim.width ) {
+				this.w[i] = dim.width;
 			}
-			v = h[i];
-			if ( v < dim.height || v == -1 ) {
-				h[i] = dim.height;
+			v = this.h[i];
+			if ( v > dim.height ) {
+				this.h[i] = dim.height;
 			}
 		}
 		
 		@Override
 		public void h(int i, int val) {
-			h[i] = val;
+			this.h[i] = val;
 		}
 		
 		@Override
 		public void w(int i, int val) {
-			w[i] = val;
+			this.w[i] = val;
 		}
 		
 		@Override
 		public int h(int i) {
-			return h[i];
+			return this.h[i];
 		}
 		
 		@Override
 		public int w(int i) {
-			return w[i];
+			return this.w[i];
 		}
 		
 		@Override
 		public int hashCode() {
-			final int prime = 31;
-			int result = 1;
-			result = prime * result + Arrays.hashCode(h);
-			result = prime * result + Arrays.hashCode(w);
+			final int prime  = 31;
+			int       result = 1;
+			result = prime * result + Arrays.hashCode(this.h);
+			result = prime * result + Arrays.hashCode(this.w);
 			return result;
 		}
 		
@@ -293,20 +291,19 @@ public interface BlockSize {
 			if ( this == obj ) { return true; }
 			if ( !( obj instanceof BlockSizeGeneric ) ) { return false; }
 			BlockSizeGeneric other = (BlockSizeGeneric) obj;
-			if ( !Arrays.equals(h, other.h) ) { return false; }
-			if ( !Arrays.equals(w, other.w) ) { return false; }
-			return true;
+			if ( !Arrays.equals(this.h, other.h) ) { return false; }
+			return Arrays.equals(this.w, other.w);
 		}
 		
 		@Override
 		public String toString() {
-			StringBuilder b = new StringBuilder().append('[');
-			for (int i = 0, l = w.length; i < l; i++) {
+			StringBuilder b = new StringBuilder().append('{');
+			for (int i = 0, l = this.w.length; i < l; i++) {
 				if ( i == 0 ) b.append('(');
 				else b.append(",(");
-				b.append(w[i]).append('|').append(h[i]).append(')');
+				b.append(this.w[i]).append('|').append(this.h[i]).append(')');
 			}
-			return b.append(']').toString();
+			return b.append('}').toString();
 		}
 		
 	}
