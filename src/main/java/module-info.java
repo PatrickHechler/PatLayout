@@ -15,6 +15,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+/**
+ * this module can be used to add the {@link de.hechler.patrick.gui.layout.PatGridLayout PatGridLayout}
+ * 
+ * @author Patrick Hechler
+ * @see de.hechler.patrick.gui.layout.PatGridLayout
+ */
 module de.hechler.patrick.gui.layout {
 	
 	requires transitive java.desktop;
