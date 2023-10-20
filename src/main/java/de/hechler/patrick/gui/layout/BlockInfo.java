@@ -21,12 +21,21 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * a {@link BlockInfo} instance stores the {@link #max() maximum} and {@link #min() minimum} size of a single row/column
+ * <p>
+ * to create {@link BlockInfo} instances
+ * <ul>
+ * <li>{@link #parseArr(String)} can be used to create an array of instances</li>
+ * <li>{@link #parse(String)} can be used to create an instance</li>
+ * <li>{@link #BlockInfo(int, int)} can be used to create an instance</li>
+ * </ul>
+ * note that {@link BlockInfo} instances are modifiable (the {@link #max() maximum} and {@link #min() minimum} size can
+ * be set with the {@link #set(int, int)} method)
+ * 
+ * @author Patrick Hechler
+ */
 public class BlockInfo {
-	
-	// [grow]
-	// [size]
-	// [min_size,grow]
-	// [min_size,max_size]
 	
 	private static final String  GROW            = "grow";
 	private static final String  NUM             = "(" + CompInfo.NUMBER + "(px)?)";
@@ -37,15 +46,29 @@ public class BlockInfo {
 	private static final String  BLOCK   = "\\[\\s*(" + CONTENT + ")\\s*\\]";
 	private static final Pattern P_BLOCK = Pattern.compile(BLOCK, Pattern.CASE_INSENSITIVE);
 	
-	private static final String  FULL   = "(" + BLOCK + "\\s*)*"; // wow only 727 chars
+	private static final String  FULL   = "(" + BLOCK + "\\s*)*";                         // wow only 727 chars
 	private static final Pattern P_FULL = Pattern.compile(FULL, Pattern.CASE_INSENSITIVE);
 	
-	public static BlockInfo[] parseArr(String text) {
-		text = text.trim();
-		if ( !P_FULL.matcher(text).matches() ) {
-			throw new IllegalArgumentException("invalid input: '" + text + "' (regex: '" + FULL + "')");
+	/**
+	 * parses the given string to an array of {@link BlockInfo} instances
+	 * <p>
+	 * each block starts with an {@code '['} and ends with an {@code ']'}<br>
+	 * between those braces is a string according to {@link #parse(String)}.<br>
+	 * between two such blocks there can be whitespace.
+	 * <p>
+	 * this means the returned array has a length equal to the amount of {@code '['} (or {@code ']'}) characters in
+	 * {@code str}<br>
+	 * 
+	 * @param str the string to be parsed
+	 * 
+	 * @return the result of the parsing operation
+	 */
+	public static BlockInfo[] parseArr(String str) {
+		str = str.trim();
+		if ( !P_FULL.matcher(str).matches() ) {
+			throw new IllegalArgumentException("invalid input: '" + str + "' (regex: '" + FULL + "')");
 		}
-		Matcher matcher = P_BLOCK.matcher(text);
+		Matcher matcher = P_BLOCK.matcher(str);
 		if ( !matcher.find() ) {
 			return PatGridLayout.EMPTY_BLOCK_INFOS;
 		}
@@ -56,38 +79,74 @@ public class BlockInfo {
 		return result.toArray(new BlockInfo[result.size()]);
 	}
 	
-	public static BlockInfo parse(String text) {
+	/**
+	 * parses a single block
+	 * <p>
+	 * {@code str} has to be formatted according to this specification:<br>
+	 * the case of {@code str} is ignored.<br>
+	 * at first the leading and trailing whitespace (if any) is removed from {@code str} ({@link String#strip()})
+	 * <ul>
+	 * <li>{@code str} is {@link String#equalsIgnoreCase(String) equals} to {@code "grow"}</li>
+	 * <li>{@code str} is a number acceptable by {@link CompInfo#parseNum(String)} with an optional {@code "px"}
+	 * appended to the end</li>
+	 * <li>{@code str} has the following format:
+	 * <ol>
+	 * <li>a number acceptable by {@link CompInfo#parseNum(String)} with an optional {@code "px"} appended to the
+	 * end</li>
+	 * <li>one of the following:
+	 * <ul>
+	 * <li>optional whitespace followed by a comma ({@code ','}) followed by optional whitespace</li>
+	 * <li>whitespace</li>
+	 * </ul>
+	 * </li>
+	 * <li>one of the following:
+	 * <ul>
+	 * <li>a number acceptable by {@link CompInfo#parseNum(String)} with an optional {@code "px"} appended to the
+	 * end</li>
+	 * <li>a sequence {@link String#equalsIgnoreCase(String) equal} to {@code "grow"}</li>
+	 * </ul>
+	 * </li>
+	 * </ol>
+	 * </li>
+	 * </ul>
+	 * 
+	 * @param str the text to be parsed
+	 * 
+	 * @return the result of the operation
+	 */
+	public static BlockInfo parse(String str) {
+		str = str.strip();
 		BlockInfo inf = new BlockInfo();
-		if ( text.equalsIgnoreCase("grow") ) {
+		if ( str.equalsIgnoreCase("grow") ) {
 			inf.max = inf.min = DYNAMIC;
 			return inf;
 		}
-		Matcher sepMat = P_OPT_COMMA_SEP.matcher(text);
-		boolean sep    = sepMat.find();
-		switch ( text.charAt(firstEnd(text, sepMat, sep) - 1) ) {
+		Matcher sepMat = P_OPT_COMMA_SEP.matcher(str);
+		boolean sep = sepMat.find();
+		switch ( str.charAt(firstEnd(str, sepMat, sep) - 1) ) {
 		case 'x':
-			if ( text.charAt(firstEnd(text, sepMat, sep) - 2) != 'p' ) {
-				CompInfo.parseError(text, firstEnd(text, sepMat, sep) - 2, "px");
+			if ( str.charAt(firstEnd(str, sepMat, sep) - 2) != 'p' ) {
+				CompInfo.parseError(str, firstEnd(str, sepMat, sep) - 2, "px");
 			}
-			inf.min = CompInfo.parseNum(text.substring(0, firstEnd(text, sepMat, sep) - 2));
+			inf.min = CompInfo.parseNum(str.substring(0, firstEnd(str, sepMat, sep) - 2));
 			break;
 		default:
-			inf.min = CompInfo.parseNum(text.substring(0, firstEnd(text, sepMat, sep)));
+			inf.min = CompInfo.parseNum(str.substring(0, firstEnd(str, sepMat, sep)));
 			break;
 		}
 		if ( sep ) {
-			if ( CompInfo.startsWith(text, "grow", text.length() - 4) ) {
+			if ( CompInfo.startsWith(str, "grow", str.length() - 4) ) {
 				inf.max = DYNAMIC;
 			} else {
-				switch ( text.charAt(text.length() - 1) ) {
+				switch ( str.charAt(str.length() - 1) ) {
 				case 'x':
-					if ( text.charAt(text.length() - 2) != 'p' ) {
-						CompInfo.parseError(text, text.length() - 2, "px");
+					if ( str.charAt(str.length() - 2) != 'p' ) {
+						CompInfo.parseError(str, str.length() - 2, "px");
 					}
-					inf.max = CompInfo.parseNum(text.substring(sepMat.end(), text.length() - 2));
+					inf.max = CompInfo.parseNum(str.substring(sepMat.end(), str.length() - 2));
 					break;
 				default:
-					inf.max = CompInfo.parseNum(text.substring(sepMat.end()));
+					inf.max = CompInfo.parseNum(str.substring(sepMat.end()));
 					break;
 				}
 			}
@@ -177,8 +236,8 @@ public class BlockInfo {
 	/** {@inheritDoc} */
 	@Override
 	public int hashCode() {
-		final int prime  = 31;
-		int       result = 1;
+		final int prime = 31;
+		int result = 1;
 		result = prime * result + this.max;
 		result = prime * result + this.min;
 		return result;

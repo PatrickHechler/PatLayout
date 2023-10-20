@@ -509,7 +509,7 @@ public class PatGridLayout implements LayoutManager2 {
 		if ( mode == FillMode.FILL_COMPLETLY ) {
 			return 0f;
 		}
-		if ( mode instanceof FillMode.ComplexFillMode fmc && fmc.type == FillMode.FILL_COMPLETLY && fmc.mul == 1f ) {
+		if ( mode instanceof FillMode.MulFillMode fmc && fmc.type == FillMode.FILL_COMPLETLY && fmc.mul == 1f ) {
 			return 0f;
 		}
 		return inf.alignx;
@@ -523,7 +523,7 @@ public class PatGridLayout implements LayoutManager2 {
 		if ( mode == FillMode.FILL_COMPLETLY ) {
 			return 0f;
 		}
-		if ( mode instanceof FillMode.ComplexFillMode fmc && fmc.type == FillMode.FILL_COMPLETLY && fmc.mul == 1f ) {
+		if ( mode instanceof FillMode.MulFillMode fmc && fmc.type == FillMode.FILL_COMPLETLY && fmc.mul == 1f ) {
 			return 0f;
 		}
 		return inf.aligny;
@@ -980,8 +980,18 @@ public class PatGridLayout implements LayoutManager2 {
 			int xmax = xminpos[xb + wb] - this.xempty;
 			int maxHeight = ymax - ymin;
 			int maxWidth = xmax - xmin;
-			int h = inf.heightMode.size(comp, inf, maxWidth, maxHeight, false);
-			int w = inf.widthMode.size(comp, inf, maxWidth, maxHeight, true);
+			int w, h;
+			Dimension dim;
+			if ( ( inf.heightMode instanceof FillMode.AdvancedFillMode afm
+				&& ( dim = afm.bothSizes(comp, inf, maxWidth, maxHeight, false, inf.widthMode) ) != null )
+				|| ( inf.widthMode instanceof FillMode.AdvancedFillMode afm
+					&& ( dim = afm.bothSizes(comp, inf, maxWidth, maxHeight, false, inf.heightMode) ) != null ) ) {
+				h = dim.height;
+				w = dim.width;
+			} else {
+				h = inf.heightMode.size(comp, inf, maxWidth, maxHeight, false);
+				w = inf.widthMode.size(comp, inf, maxWidth, maxHeight, true);
+			}
 			int ypos, xpos; // NOSONAR
 			int width, height; // NOSONAR
 			height = size(h, maxHeight);

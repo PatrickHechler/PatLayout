@@ -541,7 +541,7 @@ public class CompInfo {
 	 * @return the result of the parsing operation
 	 */
 	public static CompInfo parse(String str) {
-		str = str.trim();
+		str = str.strip();
 		Matcher matcher = P_FULL.matcher(str);
 		if ( !matcher.matches() ) {
 			throw new IllegalArgumentException(
@@ -554,7 +554,7 @@ public class CompInfo {
 		Map<String, Integer> groups = matcher.namedGroups();
 		Integer              gindex = groups.get(WH_NAME);
 		String               group;
-		if ( ( group = matcher.group(gindex.intValue()) ) != null && !( group = group.trim() ).isEmpty() ) {
+		if ( ( group = matcher.group(gindex.intValue()) ) != null && !( group = group.strip() ).isEmpty() ) {
 			arr = group.split("\\s+");
 			int w = parseNum(arr[0]);
 			int h = parseNum(arr[1]);
@@ -563,19 +563,19 @@ public class CompInfo {
 			inf.bounds(x, y, 1, 1);
 		}
 		gindex = groups.get(XA_NAME);
-		if ( ( group = matcher.group(gindex.intValue()) ) != null && !( group = group.trim() ).isEmpty() ) {
+		if ( ( group = matcher.group(gindex.intValue()) ) != null && !( group = group.strip() ).isEmpty() ) {
 			inf.xAlign(parseAlign(group));
 		}
 		gindex = groups.get(YA_NAME);
-		if ( ( group = matcher.group(gindex.intValue()) ) != null && !( group = group.trim() ).isEmpty() ) {
+		if ( ( group = matcher.group(gindex.intValue()) ) != null && !( group = group.strip() ).isEmpty() ) {
 			inf.yAlign(parseAlign(group));
 		}
 		gindex = groups.get(FW_NAME);
-		if ( ( group = matcher.group(gindex.intValue()) ) != null && !( group = group.trim() ).isEmpty() ) {
+		if ( ( group = matcher.group(gindex.intValue()) ) != null && !( group = group.strip() ).isEmpty() ) {
 			SimpleFillMode sfm = parseSimpleFillMode(matcher.group(FW_OPTS_NAME));
 			gindex = groups.get(FW_MUL_NAME);
-			if ( ( group = matcher.group(gindex.intValue()) ) != null && !( group = group.trim() ).isEmpty() ) {
-				inf.widthMode = new FillMode.ComplexFillMode(sfm, parseFpNumWithMul(group));
+			if ( ( group = matcher.group(gindex.intValue()) ) != null && !( group = group.strip() ).isEmpty() ) {
+				inf.widthMode = FillMode.fillMode(parseFpNumWithMul(group), sfm);
 			} else {
 				inf.widthMode = sfm;
 			}
@@ -583,11 +583,11 @@ public class CompInfo {
 			inf.widthMode = FillMode.FILL_MAXIMUM;
 		}
 		gindex = groups.get(FH_NAME);
-		if ( ( group = matcher.group(gindex.intValue()) ) != null && !( group = group.trim() ).isEmpty() ) {
+		if ( ( group = matcher.group(gindex.intValue()) ) != null && !( group = group.strip() ).isEmpty() ) {
 			SimpleFillMode sfm = parseSimpleFillMode(matcher.group(FH_OPTS_NAME));
 			gindex = groups.get(FH_MUL_NAME);
-			if ( ( group = matcher.group(gindex.intValue()) ) != null && !( group = group.trim() ).isEmpty() ) {
-				inf.heightMode = new FillMode.ComplexFillMode(sfm, parseFpNumWithMul(group));
+			if ( ( group = matcher.group(gindex.intValue()) ) != null && !( group = group.strip() ).isEmpty() ) {
+				inf.heightMode = FillMode.fillMode(parseFpNumWithMul(group), sfm);
 			} else {
 				inf.heightMode = sfm;
 			}
@@ -598,7 +598,7 @@ public class CompInfo {
 	}
 	
 	private static float parseFpNumWithMul(String group) {
-		return parseFpNum(group.substring(group.indexOf('*')).trim());
+		return parseFpNum(group.substring(group.indexOf('*')).strip());
 	}
 	
 	private static SimpleFillMode parseSimpleFillMode(String group) {
@@ -621,7 +621,7 @@ public class CompInfo {
 		if ( index == -1 ) {
 			index = str.indexOf(',');
 		}
-		str = str.substring(index + 1).trim();
+		str = str.substring(index + 1).strip();
 		switch ( str ) {
 		case XA_OPT_LEFT, YA_OPT_TOP:
 			return 0f;

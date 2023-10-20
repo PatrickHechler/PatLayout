@@ -29,7 +29,7 @@ import java.awt.Dimension;
  * <li>{@link #FILL_PREFERRED}: fills as much as {@link Component#getPreferredSize()} requests</li>
  * </ul>
  * they directly implement the {@link FillMode} interface and thus they can directly be used.<br>
- * if needed {@link ComplexFillMode} allows to combine a {@link SimpleFillMode} with a multiplicator<br>
+ * if needed {@link MulFillMode} allows to combine a {@link SimpleFillMode} with a multiplicator<br>
  * note that depending on the used {@link SimpleFillMode} there are restrictions on the multiplicator:
  * <ul>
  * <li>{@link #FILL_COMPLETLY}: must be between {@code 1} and {@code 0}</li>
@@ -44,80 +44,156 @@ public interface FillMode {
 	/**
 	 * fills as much as {@link Component#getMinimumSize()} needs
 	 * <p>
-	 * when used with {@link ComplexFillMode} or {@link #fillMode(float, SimpleFillMode)} {@code mul} must be at least
-	 * {@code 1}
+	 * when used with {@link MulFillMode#set(FillMode, float)} or {@link #fillMode(float, FillMode)} {@code mul} must be
+	 * at least {@code 1}
 	 */
-	public static final SimpleFillMode FILL_MINIMUM   = SimpleFillMode.FILL_MINIMUM;
+	public static final SimpleFillMode FILL_MINIMUM   = new SimpleFillMode.AdvancedFillModeImpl(
+		SimpleFillMode.FILL_MINIMUM);
 	/**
 	 * fills as much as {@link Component#getPreferredSize()} requests
 	 * <p>
-	 * when used with {@link ComplexFillMode} or {@link #fillMode(float, SimpleFillMode)} {@code mul} must be over
-	 * {@code 0}
+	 * when used with {@link MulFillMode#set(FillMode, float)} or {@link #fillMode(float, FillMode)} {@code mul} must be
+	 * over {@code 0}
 	 */
-	public static final SimpleFillMode FILL_PREFERRED = SimpleFillMode.FILL_PREFERRED;
+	public static final SimpleFillMode FILL_PREFERRED = new SimpleFillMode.AdvancedFillModeImpl(
+		SimpleFillMode.FILL_PREFERRED);
 	/**
 	 * fills as much as {@link Component#getMaximumSize()} allows
 	 * <p>
-	 * when used with {@link ComplexFillMode} or {@link #fillMode(float, SimpleFillMode)} {@code mul} must be between
-	 * {@code 1} and {@code 0}
+	 * when used with {@link MulFillMode#set(FillMode, float)} or {@link #fillMode(float, FillMode)} {@code mul} must be
+	 * between {@code 1} and {@code 0}
 	 */
-	public static final SimpleFillMode FILL_MAXIMUM   = SimpleFillMode.FILL_MAXIMUM;
+	public static final SimpleFillMode FILL_MAXIMUM   = new SimpleFillMode.AdvancedFillModeImpl(
+		SimpleFillMode.FILL_MAXIMUM);
 	/**
 	 * fills the complete area
 	 * <p>
-	 * when used with {@link ComplexFillMode} or {@link #fillMode(float, SimpleFillMode)} {@code mul} must be between
-	 * {@code 1} and {@code 0}
+	 * when used with {@link MulFillMode#set(FillMode, float)} or {@link #fillMode(float, FillMode)} {@code mul} must be
+	 * between {@code 1} and {@code 0}
 	 */
-	public static final SimpleFillMode FILL_COMPLETLY = SimpleFillMode.FILL_COMPLETLY;
+	public static final SimpleFillMode FILL_COMPLETLY = new SimpleFillMode(SimpleFillMode.FILL_COMPLETLY);
 	
+	/**
+	 * return the size (width/height) the component should ideally have
+	 * 
+	 * @param comp      the component
+	 * @param info      the info of the component
+	 * @param maxWidth  the maximum width
+	 * @param maxHeigth the maximum height
+	 * @param width     if the width or height should be returned
+	 * 
+	 * @return the size (width/height) the component should ideally have
+	 */
 	int size(Component comp, CompInfo info, int maxWidth, int maxHeigth, boolean width);
 	
 	/**
-	 * combines a multiplicator with a {@link SimpleFillMode}
-	 * <p>
-	 * if {@code mul} is {@code 1f} the {@link SimpleFillMode} is just returned<br>
-	 * otherwise a new {@link ComplexFillMode} is created by using
-	 * {@link ComplexFillMode#ComplexFillMode(SimpleFillMode, float) new ComplexFillMode(mode, mul)} and then returned
-	 * 
-	 * @param mul  the multiplicator
-	 * @param mode the {@link SimpleFillMode}
-	 * 
-	 * @return the combined {@link FillMode}
+	 * this extension of the fill mode can calculate both fill modes at once<br>
+	 * note that this interface should only be implemented when there is a gain (either in memory or speed) when
+	 * calculating both sizes at once.<br>
+	 * for example {@link FillMode#FILL_MAXIMUM} implements this interface, since it has to call
+	 * {@link Component#getMaximumSize()} anyway and when the other mode is also {@link FillMode#FILL_MAXIMUM} the
+	 * calculation of the second value is not needed
 	 */
-	public static FillMode fillMode(float mul, SimpleFillMode mode) {
-		if ( mode == null ) throw new NullPointerException("the simple fill-mode is null");
-		if ( mul == 1f ) return mode;
-		return new ComplexFillMode(mode, mul);
+	interface AdvancedFillMode extends FillMode {
+		
+		Dimension bothSizes(Component comp, CompInfo info, int maxWidth, int maxHeigth, boolean width, FillMode other);
+		
 	}
 	
 	/**
-	 * this {@code enum} implements the {@link FillMode} interface
+	 * combines a multiplicator with a {@link FillMode} in a new {@link MulFillMode} instance
 	 * <p>
-	 * the first three constants ({@link #FILL_MINIMUM}, {@link #FILL_PREFERRED}, {@link #FILL_MAXIMUM}) use the
-	 * {@link Component#getMinimumSize() minimum}, {@link Component#getPreferredSize() preferred} or
-	 * {@link Component#getMaximumSize() maximum} size to get the wanted size of the component.<br>
-	 * the last constant {@link #FILL_COMPLETLY} tells the layout manager to fill the entire block with the component
+	 * if {@code mode} is an {@link AdvancedFillMode} an {@link AdvancedFillMode} will be returned
+	 * <p>
+	 * note that after invoking {@link MulFillMode#set(FillMode, float)} the returned instance may be a valid
+	 * {@link AdvancedFillMode} instance without a backing {@link AdvancedFillMode}.<br>
+	 * if that happens and {@link AdvancedFillMode#bothSizes(Component, CompInfo, int, int, boolean, FillMode)
+	 * AdvancedFillMode.bothSizes(...)} is called, a new {@link Dimension} will be created and initialized with the
+	 * values of both {@link #size(Component, CompInfo, int, int, boolean) size(...)} invocations<br>
+	 * note that even if {@code other} is an {@link AdvancedFillMode} it's
+	 * {@link AdvancedFillMode#bothSizes(Component, CompInfo, int, int, boolean, FillMode)
+	 * AdvancedFillMode.bothSizes(...)} method will not be used (it is assumed that this method is only profitable when
+	 * both instances are of the same/a compatible type)
+	 * <p>
+	 * if for some reason you really want to have a {@link SimpleFillMode} with an invalid multiplicator you can either
+	 * use <code>fillMode(mul, fillMode(1f, mode))</code> or create your own {@link SimpleFillMode} (or create a
+	 * wrapper).
+	 * 
+	 * @param mul  the multiplicator
+	 * @param mode the {@link FillMode}
+	 * 
+	 * @return the combined {@link FillMode}
+	 * 
+	 * @throws NullPointerException     if {@code mode} is {@code null}
+	 * @throws IllegalArgumentException if {@code mode} is a {@link SimpleFillMode} and {@code mul} is not valid for the
+	 *                                      given {@code mode}
 	 */
-	public static enum SimpleFillMode implements FillMode {
+	public static MulFillMode fillMode(float mul, FillMode mode) throws NullPointerException, IllegalArgumentException {
+		if ( mode == null ) throw new NullPointerException("the simple fill-mode is null");
+		if ( mode instanceof AdvancedFillMode ) return new MulFillMode.AdvancedMulFillMode(mode, mul);
+		return new MulFillMode(mode, mul);
+	}
+	
+	/**
+	 * this {@code class} implements the {@link FillMode} interface
+	 * <p>
+	 * the first three constants ({@link FillMode#FILL_MINIMUM}, {@link FillMode#FILL_PREFERRED},
+	 * {@link FillMode#FILL_MAXIMUM}) use the {@link Component#getMinimumSize() minimum},
+	 * {@link Component#getPreferredSize() preferred} or {@link Component#getMaximumSize() maximum} size to get the
+	 * wanted size of the component.<br>
+	 * the last constant {@link FillMode#FILL_COMPLETLY} tells the layout manager to fill the entire block with the
+	 * component
+	 */
+	public static sealed class SimpleFillMode implements FillMode {
 		
-		/** @see FillMode#FILL_MINIMUM */
-		FILL_MINIMUM,
+		private final static int FILL_COMPLETLY = 0;
+		private final static int FILL_MAXIMUM   = 1;
+		private final static int FILL_PREFERRED = 2;
+		private final static int FILL_MINIMUM   = 3;
 		
-		/** @see FillMode#FILL_PREFERRED */
-		FILL_PREFERRED,
+		private final int mode;
 		
-		/** @see FillMode#FILL_MAXIMUM */
-		FILL_MAXIMUM,
+		private SimpleFillMode(int mode) {
+			this.mode = mode;
+		}
 		
-		/** @see FillMode#FILL_COMPLETLY */
-		FILL_COMPLETLY,
+		private static final class AdvancedFillModeImpl extends SimpleFillMode implements AdvancedFillMode {
+			
+			private AdvancedFillModeImpl(int mode) {
+				super(mode);
+			}
+			
+			@Override
+			public Dimension bothSizes(Component comp, CompInfo info, int maxWidth, int maxHeigth, boolean width,
+				FillMode other) {
+				Dimension dim;
+				switch ( super.mode ) {
+				case SimpleFillMode.FILL_MAXIMUM -> dim = comp.getMaximumSize();
+				case SimpleFillMode.FILL_MINIMUM -> dim = comp.getMinimumSize();
+				case SimpleFillMode.FILL_PREFERRED -> dim = comp.getPreferredSize();
+				default -> throw new AssertionError("illegal mode: " + super.mode);
+				};
+				if ( other == this ) {
+					return dim;
+				}
+				if ( other instanceof MulFillMode cfm && cfm.type == this ) {
+					if ( width ) dim.height *= cfm.mul;
+					else dim.width *= cfm.mul;
+					return dim;
+				}
+				if ( width ) dim.height = other.size(comp, info, maxWidth, maxHeigth, false);
+				else dim.width = other.size(comp, info, maxWidth, maxHeigth, true);
+				return dim;
+			}
+			
+		}
 		
-		;
-		
+		/** {@inheritDoc} */
 		@Override
-		public int size(Component comp, CompInfo info, int maxWidth, int maxHeigth, boolean width) {
+		public int size(Component comp, @SuppressWarnings( "unused" ) CompInfo info, int maxWidth, int maxHeigth,
+			boolean width) {
 			Dimension dim;
-			switch ( this ) {
+			switch ( this.mode ) {
 			case FILL_COMPLETLY -> {
 				if ( width ) return maxWidth;
 				return maxHeigth;
@@ -125,7 +201,7 @@ public interface FillMode {
 			case FILL_MAXIMUM -> dim = comp.getMaximumSize();
 			case FILL_MINIMUM -> dim = comp.getMinimumSize();
 			case FILL_PREFERRED -> dim = comp.getPreferredSize();
-			default -> throw new AssertionError("unknown SimpleFillMode: " + name());
+			default -> throw new AssertionError("illegal mode: " + this.mode);
 			};
 			if ( width ) return dim.width;
 			return dim.height;
@@ -134,26 +210,34 @@ public interface FillMode {
 		/** {@inheritDoc} */
 		@Override
 		public String toString() {
-			return switch ( this ) {
+			return switch ( this.mode ) {
 			case FILL_PREFERRED -> "preferred";
 			case FILL_MINIMUM -> "minimum";
 			case FILL_MAXIMUM -> "maximum";
 			case FILL_COMPLETLY -> "completly";
+			default -> throw new AssertionError("illegal mode: " + this.mode);
 			};
 		}
 		
 	}
 	
-	public static final class ComplexFillMode implements FillMode {
+	/**
+	 * combines a {@link FillMode} with an multiplicator
+	 * 
+	 * @see FillMode#fillMode(float, FillMode)
+	 */
+	public static sealed class MulFillMode implements FillMode {
 		
-		SimpleFillMode type;
-		float          mul;
+		FillMode type;
+		float    mul;
 		
 		/**
-		 * @param type
-		 * @param mul
+		 * creates a new {@link MulFillMode} instance with the given type
+		 * 
+		 * @param type the backing type
+		 * @param mul  the multiplicator
 		 */
-		public ComplexFillMode(SimpleFillMode type, float mul) {
+		public MulFillMode(FillMode type, float mul) {
 			set(type, mul);
 		}
 		
@@ -166,33 +250,98 @@ public interface FillMode {
 			return this.mul;
 		}
 		
-		@Override
-		public int size(Component comp, CompInfo info, int maxWidth, int maxHeigth, boolean width) {
-			return (int) ( this.mul * type.size(comp, info, maxWidth, maxHeigth, width) );
+		/**
+		 * extends the {@link MulFillMode} class by the {@link AdvancedFillMode} interface
+		 */
+		public static final class AdvancedMulFillMode extends MulFillMode implements AdvancedFillMode {
+			
+			/**
+			 * creates a new {@link AdvancedMulFillMode} instance with the given type
+			 * 
+			 * @param type the backing type
+			 * @param mul  the multiplicator
+			 */
+			public AdvancedMulFillMode(FillMode type, float mul) {
+				super(type, mul);
+			}
+			
+			/** {@inheritDoc} */
+			@Override
+			public Dimension bothSizes(Component comp, CompInfo info, int maxWidth, int maxHeigth, boolean width,
+				FillMode other) {
+				// it is possible for super.type to not be a AdvancedFillMode, because set is allowed to change that
+				// also the constructor does not enforce the AdvancedFillMode class
+				if ( super.type instanceof FillMode.AdvancedFillMode afm ) {
+					if ( other instanceof MulFillMode mfm ) {
+						Dimension dim = afm.bothSizes(comp, info, maxWidth, maxHeigth, width, mfm.type);
+						if ( width ) {
+							dim.width *= super.mul;
+							dim.height *= mfm.mul;
+						} else {
+							dim.height *= super.mul;
+							dim.width *= mfm.mul;
+						}
+						return dim;
+					} else {
+						Dimension dim = afm.bothSizes(comp, info, maxWidth, maxHeigth, width, other);
+						if ( width ) dim.width *= super.mul;
+						else dim.height *= super.mul;
+						return dim;
+					}
+				} else {
+					int a = super.type.size(comp, info, maxWidth, maxHeigth, width);
+					int b = other.size(comp, info, maxWidth, maxHeigth, !width);
+					if ( width ) return new Dimension(a, b);
+					return new Dimension(b, a);
+				}
+			}
+			
 		}
 		
-		public void set(SimpleFillMode type, float mul) {
-			switch ( type ) {
-			case FILL_COMPLETLY, FILL_MAXIMUM:
-				if ( !( mul <= 1f ) || mul < 0f ) { // NOSONAR also catch NaN
-					throw new IllegalArgumentException(
-						"invalid multiplicator: " + type + " only supports multiplicator from 0 to 1. mul=" + mul);
+		/** {@inheritDoc} */
+		@Override
+		public int size(Component comp, CompInfo info, int maxWidth, int maxHeigth, boolean width) {
+			return (int) ( this.mul * this.type.size(comp, info, maxWidth, maxHeigth, width) );
+		}
+		
+		/**
+		 * sets the type and multiplicator
+		 * 
+		 * @param type the backing fill mode
+		 * @param mul  the multiplicator
+		 * 
+		 * @see FillMode#fillMode(float, FillMode)
+		 * 
+		 * @throws NullPointerException     if {@code mode} is {@code null}
+		 * @throws IllegalArgumentException if {@code mode} is a {@link SimpleFillMode} and {@code mul} is not valid for
+		 *                                      the given {@code mode}
+		 */
+		public void set(FillMode type, float mul) throws NullPointerException, IllegalArgumentException {
+			if ( type instanceof SimpleFillMode sfm ) {
+				switch ( sfm.mode ) {
+				case SimpleFillMode.FILL_COMPLETLY, SimpleFillMode.FILL_MAXIMUM:
+					if ( !( mul <= 1f ) || mul < 0f ) { // NOSONAR also catch NaN
+						throw new IllegalArgumentException(
+							"invalid multiplicator: " + sfm + " only supports multiplicator from 0 to 1. mul=" + mul);
+					}
+					break;
+				case SimpleFillMode.FILL_MINIMUM:
+					if ( !( mul >= 1f ) ) { // NOSONAR also catch NaN
+						throw new IllegalArgumentException(
+							"invalid multiplicator: minimum only supports multiplicator greather or equal than 1. mul="
+								+ mul);
+					}
+					break;
+				case SimpleFillMode.FILL_PREFERRED:
+					if ( !( mul > 0f ) ) { // NOSONAR also catch NaN
+						throw new IllegalArgumentException(
+							"invalid multiplicator: preferred only supports multiplicator greather than 0. mul=" + mul);
+					}
+					break;
+				default:
+					throw new AssertionError("illegal mode: " + sfm.mode);
 				}
-				break;
-			case FILL_MINIMUM:
-				if ( !( mul >= 1f ) ) { // NOSONAR also catch NaN
-					throw new IllegalArgumentException(
-						"invalid multiplicator: minimum only supports multiplicator greather or equal than 1. mul="
-							+ mul);
-				}
-				break;
-			case FILL_PREFERRED:
-				if ( !( mul > 0f ) ) { // NOSONAR also catch NaN
-					throw new IllegalArgumentException(
-						"invalid multiplicator: preferred only supports multiplicator greather than 0. mul=" + mul);
-				}
-				break;
-			}
+			} else if ( type == null ) throw new NullPointerException("fill mode is null");
 			this.type = type;
 			this.mul = mul;
 		}
@@ -211,8 +360,8 @@ public interface FillMode {
 		@Override
 		public boolean equals(Object obj) {
 			if ( this == obj ) { return true; }
-			if ( !( obj instanceof ComplexFillMode ) ) { return false; }
-			ComplexFillMode other = (ComplexFillMode) obj;
+			if ( !( obj instanceof MulFillMode ) ) { return false; }
+			MulFillMode other = (MulFillMode) obj;
 			if ( this.mul != other.mul ) { return false; }
 			return this.type == other.type;
 		}
