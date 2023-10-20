@@ -37,8 +37,6 @@ import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 import javax.swing.WindowConstants;
 
-import de.hechler.patrick.gui.layout.FillMode.SimpleFillMode;
-
 /**
  * this class implements the {@link LayoutManager2} interface
  * <p>
