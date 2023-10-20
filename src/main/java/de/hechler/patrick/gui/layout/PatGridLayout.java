@@ -982,7 +982,7 @@ public class PatGridLayout implements LayoutManager2 {
 			int xmax = xminpos[xb + wb] - this.xempty;
 			int maxHeight = ymax - ymin;
 			int maxWidth = xmax - xmin;
-			int h = inf.widthMode.size(comp, inf, maxWidth, maxHeight, false);
+			int h = inf.heightMode.size(comp, inf, maxWidth, maxHeight, false);
 			int w = inf.widthMode.size(comp, inf, maxWidth, maxHeight, true);
 			int ypos, xpos; // NOSONAR
 			int width, height; // NOSONAR
